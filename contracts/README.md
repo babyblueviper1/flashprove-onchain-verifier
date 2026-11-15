@@ -197,8 +197,10 @@ output, metadata, deployment and chain id, and the malformed cases above.
 ## The anchor
 
 FlashProve's appendix leans on a trusted host that serves the artifacts a commitment ID was made
-from. The anchor removes that trust without touching the proof: the commitment stays outside the
-SNARK, so the verifier still runs on a laptop.
+from. The anchor does not delete that trust; it moves and narrows it. "Trust the host to serve the
+right bytes" becomes "an anchorer you chose makes a checkable claim that these bytes are the
+commitment", and anyone who redoes the commitment-ID recompute from the weights can falsify that
+claim. The commitment stays outside the SNARK, so the verifier still runs on a laptop.
 
 An anchorer publishes, once per commitment ID, the digest of the static artifacts behind it:
 
@@ -214,15 +216,22 @@ The rule is pinned twice: `ModelCommitmentAnchor.anchorDigest()` on-chain and
 `scripts/recompute-anchor.py` from the files. The repository's fixtures give
 `0x527d75d42538d608c874cc47a0e605b674448dd6ccae18d6279475167e5374a9`, the vector the tests check.
 
-Two checks then replace the trusted host. Neither one needs to trust whoever served the bytes:
+Two checks then replace the trusted host. Neither one needs to trust whoever served the bytes, and
+**both are required**: the on-chain check alone does not bind any bytes.
 
 1. **On-chain:** an outer `IAgentVerifier` accepts a proof only if the FPV1 block's commitment ID
    is `isAnchored(anchorer, commitmentId)` under an anchorer it chose. It is one call beside the
-   existing commitment-ID comparison, and a revoked anchor stops verification at once.
+   existing commitment-ID comparison, and a revoked anchor stops verification at once. It proves
+   only that an accepted anchorer holds a live anchor for the ID; the chain never sees the artifact
+   bytes.
 2. **Off-chain:** the client hashes the artifacts it downloaded and compares them with the anchor
    with `recompute-anchor.py … --expect <anchorDigest>`, or on-chain with
    `isLive(anchorer, commitmentId, digest)`. The per-request files (request, y, proof, id) are
-   already bound by `input_digest`; the anchor covers the static ones.
+   already bound by `input_digest`; the anchor covers the static ones. This is the check that ties the
+   bytes to the anchor. An integrator who wires only `isAnchored` has not bound anything.
+
+The anchor reads the artifact files, never `ID.txt`, so the trailing newline on the fixture's
+`ID.txt` (65 bytes on disk; the manifest hashes its 64 hex characters) does not affect it.
 
 The registry has no owner, no upgrade path and no fee. Each anchor is write-once per
 (anchorer, commitment ID), because changed artifacts mean a different commitment and so a new ID.
