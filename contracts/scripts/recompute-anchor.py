@@ -34,7 +34,40 @@ def anchor_digest(policy, layout, kl, key, leaves):
     return h.digest()
 
 
+REF_DOMAIN = b"FlashProve/anchor-ref-v1\x00"
+
+
+def _addr(a):
+    b = bytes.fromhex(a.lower().removeprefix("0x"))
+    if len(b) != 20:
+        raise SystemExit(f"not a 20-byte address: {a}")
+    return b
+
+
+def anchor_ref(chain_id, registry, anchorer, commitment_id):
+    """anchorRef = SHA-256(REF_DOMAIN || u256be(chainId) || registry || anchorer || commitmentId) -- the
+    key of one anchor row; the content digest above stays chain-free."""
+    cid = bytes.fromhex(commitment_id.lower().removeprefix("0x"))
+    if len(cid) != 32:
+        raise SystemExit("commitment ID must be 32 bytes")
+    return hashlib.sha256(REF_DOMAIN + int(chain_id).to_bytes(32, "big") + _addr(registry) + _addr(anchorer) + cid).digest()
+
+
 def main(argv):
+    if argv[:1] == ["--ref"]:   # --ref CHAIN_ID REGISTRY ANCHORER COMMITMENT_ID [--expect REF]
+        a = argv[1:]
+        exp = None
+        if "--expect" in a:
+            i = a.index("--expect"); exp = a[i + 1].lower().removeprefix("0x"); a = a[:i] + a[i + 2:]
+        if len(a) != 4:
+            print(__doc__, file=sys.stderr)
+            return 64
+        got = anchor_ref(*a).hex()
+        print(f"anchor ref: 0x{got}")
+        if exp is None:
+            return 0
+        print("RECOMPUTED: matches the anchor ref" if got == exp else f"MISMATCH: expected 0x{exp}")
+        return 0 if got == exp else 1
     expect = None
     if "--expect" in argv:
         i = argv.index("--expect")

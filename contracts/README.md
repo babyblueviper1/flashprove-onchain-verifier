@@ -238,6 +238,26 @@ The registry has no owner, no upgrade path and no fee. Each anchor is write-once
 Revocation is permanent. Anchorers are independent of one another, and the verifier decides whose
 anchors count.
 
+### Naming an anchor row: `anchorRef`
+
+The digest is about content: the same artifacts hash the same on every chain, so `chainId` is not
+part of it. A record that composes with an anchor, such as a verifier-profile anchor keyed on
+`(verifier, proofProfile(), keccak(metadata), chainId)`, needs to name one anchor *row*, though, and
+a row does live on one chain, in one registry, under one anchorer. That key is `anchorRef`:
+
+```
+ANCHOR_REF_DOMAIN = "FlashProve/anchor-ref-v1\0"
+anchorRef = SHA-256(ANCHOR_REF_DOMAIN ‖ u256be(chainId) ‖ registry ‖ anchorer ‖ commitmentId)
+```
+
+`ModelCommitmentAnchor.anchorRef(anchorer, commitmentId)` returns it for this deployment, and
+`anchorRefFor(chainId, registry, anchorer, commitmentId)` gives the rule for any deployment.
+`scripts/recompute-anchor.py --ref <chainId> <registry> <anchorer> <commitmentId>` computes the same
+value; the tests check the vector `0xe6979b5c…8cc0` (chain 84532, registry 0x11…11, anchorer
+0x22…22, ID 0x33…33). A model anchor and a verifier-profile anchor stay two records with their own
+lifetimes, revocable versus rotating, and each can carry the other's key so a consumer can join them
+in one hop.
+
 ### What an anchor does not prove
 
 An anchor is the anchorer's claim that these artifacts belong to this commitment ID. It does not

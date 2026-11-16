@@ -50,4 +50,12 @@ interface IModelCommitmentAnchor {
     /// @notice True when `anchorer` holds a live anchor for `commitmentId` (any digest) — the check
     ///         an outer verifier makes on-chain, where the artifact bytes are not available.
     function isAnchored(address anchorer, bytes32 commitmentId) external view returns (bool);
+
+    /// @notice A stable key naming one anchor ROW, for records that compose with it (e.g. a verifier
+    ///         profile anchor keyed on (verifier, proofProfile(), metadata, chainId)). The digest stays
+    ///         content-only -- the same artifacts hash the same on every chain -- and the chain lives
+    ///         here, in the reference:
+    ///         anchorRef = SHA-256(ANCHOR_REF_DOMAIN ‖ u256be(chainId) ‖ registry ‖ anchorer ‖ commitmentId)
+    ///         ANCHOR_REF_DOMAIN = "FlashProve/anchor-ref-v1\0"; registry and anchorer are 20 bytes.
+    function anchorRef(address anchorer, bytes32 commitmentId) external view returns (bytes32);
 }

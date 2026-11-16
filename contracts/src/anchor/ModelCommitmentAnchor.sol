@@ -10,6 +10,7 @@ import {IModelCommitmentAnchor} from "../interfaces/IModelCommitmentAnchor.sol";
 ///         disagree about it; `scripts/recompute-anchor.py` computes the same value from files.
 contract ModelCommitmentAnchor is IModelCommitmentAnchor, IERC165 {
     bytes public constant ANCHOR_DOMAIN = "FlashProve/anchor-v1\x00";
+    bytes public constant ANCHOR_REF_DOMAIN = "FlashProve/anchor-ref-v1\x00";
 
     mapping(address => mapping(bytes32 => Anchor)) private _anchors;
 
@@ -73,6 +74,21 @@ contract ModelCommitmentAnchor is IModelCommitmentAnchor, IERC165 {
             sha256(
                 abi.encodePacked(ANCHOR_DOMAIN, policySha, layoutSha, klSha, keySha, nle, leafShas)
             );
+    }
+
+    /// @inheritdoc IModelCommitmentAnchor
+    function anchorRef(address anchorer, bytes32 commitmentId) external view returns (bytes32) {
+        return anchorRefFor(block.chainid, address(this), anchorer, commitmentId);
+    }
+
+    /// @notice The anchorRef rule for any deployment, pinned here so a client and the contract cannot
+    ///         disagree about it; `scripts/recompute-anchor.py --ref` computes the same value.
+    function anchorRefFor(uint256 chainId, address registry, address anchorer, bytes32 commitmentId)
+        public
+        pure
+        returns (bytes32)
+    {
+        return sha256(abi.encodePacked(ANCHOR_REF_DOMAIN, chainId, registry, anchorer, commitmentId));
     }
 
     function supportsInterface(bytes4 interfaceId) external pure returns (bool) {

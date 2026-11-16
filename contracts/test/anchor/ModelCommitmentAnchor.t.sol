@@ -160,4 +160,30 @@ contract ModelCommitmentAnchorTest is TestBase {
         assertTrue(reg.supportsInterface(type(IERC165).interfaceId), "erc165");
         assertFalse(reg.supportsInterface(0xffffffff), "bogus");
     }
+
+    // anchorRef: the key of one anchor row (chain + registry + anchorer + commitment ID); the content digest stays chain-free.
+    // Cross-language vector: scripts/recompute-anchor.py --ref 84532 0x11..11 0x22..22 0x33..33
+    bytes32 constant REF_VECTOR = 0xe6979b5c93b3046f1cf20485a65b525ee395468c2f8c897800ce38899d508cc0;
+
+    function test_anchorRefFor_vector() public view {
+        bytes32 id = 0x3333333333333333333333333333333333333333333333333333333333333333;
+        assertEq(
+            reg.anchorRefFor(84532, 0x1111111111111111111111111111111111111111, 0x2222222222222222222222222222222222222222, id),
+            REF_VECTOR, "ref vector"
+        );
+    }
+
+    function test_anchorRef_is_this_deployment() public view {
+        bytes32 id = keccak256("cid");
+        assertEq(reg.anchorRef(address(this), id), reg.anchorRefFor(block.chainid, address(reg), address(this), id), "view = rule");
+    }
+
+    function test_anchorRef_changes_with_every_input() public view {
+        bytes32 id = keccak256("cid");
+        bytes32 r = reg.anchorRefFor(1, address(0xA), address(0xB), id);
+        assertTrue(reg.anchorRefFor(2, address(0xA), address(0xB), id) != r, "chain");
+        assertTrue(reg.anchorRefFor(1, address(0xC), address(0xB), id) != r, "registry");
+        assertTrue(reg.anchorRefFor(1, address(0xA), address(0xC), id) != r, "anchorer");
+        assertTrue(reg.anchorRefFor(1, address(0xA), address(0xB), keccak256("other")) != r, "commitment");
+    }
 }
